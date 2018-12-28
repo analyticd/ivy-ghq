@@ -66,6 +66,13 @@
        (format "%s%s" (ivy-ghq--get-root) file)
      (format "%s" file))))
 
+(defun ivy-ghq--delete-dired (file)
+  (dired-delete-file
+   (if ivy-ghq-short-list
+       (format "%s%s" (ivy-ghq--get-root) file)
+     (format "%s" file))
+   t t))
+
 (defun ivy-ghq--get-root ()
   (with-temp-buffer
     (unless (zerop (apply #'call-process
@@ -100,6 +107,20 @@
                                    (ivy-ghq--list-candidates))))
     (if (ivy-ghq--open-dired path)
         (message (format "Open ghq repository: %s" path)))))
+
+;;; autoload
+(defun ivy-ghq-delete-repo ()
+  "Use `ivy-completing-read' to \\[dired-delete-file] a ghq managed repo"
+  (interactive)
+  (let ((path (ivy-completing-read "Find ghq repo.: "
+                                   (ivy-ghq--list-candidates))))
+    (when (y-or-n-p (format "Are you sure you want to delete %s? " path))
+      (ivy-ghq--delete-dired path)
+      (when (not (file-exists-p path))
+        (when (y-or-n-p
+               (format
+                "Deleted ghq repository: %s. Would you like to navigate to its parent directory?" path))
+          (dired (file-name-directory (directory-file-name path))))))))
 
 (provide 'ivy-ghq)
 ;;; ivy-ghq.el ends here
