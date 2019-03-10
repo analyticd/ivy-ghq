@@ -125,10 +125,21 @@
 ;;; autoload
 (defun ivy-ghq-add-repo (start end)
   "Ask ghq to add a git repo defined in the highlighted region of
-the current buffer."
+the current buffer. This is best used with emacs-w3m or another
+Emacs-based web browser."
   (interactive "r")
   (compilation-start
    (format  "ghq get %s" (buffer-substring start end))))
+
+;;; autoload
+(defun ivy-ghq-add-org-link ()
+  "Use `ivy-completing-read' to insert an Org link to a ghq
+managed repo."
+  (interactive)
+  (let* ((path (ivy-completing-read "Find ghq repo.: "
+                                   (ivy-ghq--list-candidates)))
+         (description (read-string "Link description (optional): ")))
+    (insert (format "[[ghq:%s][%s]]" path (if (not (string-empty-p description)) description path)))))
 
 (provide 'ivy-ghq)
 ;;; ivy-ghq.el ends here
