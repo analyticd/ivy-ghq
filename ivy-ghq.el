@@ -122,5 +122,13 @@
                 "Deleted ghq repository: %s. Would you like to navigate to its parent directory?" path))
           (dired (file-name-directory (directory-file-name path))))))))
 
+;;; autoload
+(defun ivy-ghq-add-repo (start end)
+  "Ask ghq to add a git repo defined in the highlighted region of
+the current buffer."
+  (interactive "r")
+  (compilation-start
+   (format  "ghq get %s" (buffer-substring start end))))
+
 (provide 'ivy-ghq)
 ;;; ivy-ghq.el ends here
