@@ -131,6 +131,77 @@ Emacs-based web browser."
   (compilation-start
    (format  "ghq get %s" (buffer-substring start end))))
 
+(defcustom ivy-ghq-github-username "analyticd"
+  "Your username on github.com")
+
+;;; autoload
+(defun ivy-ghq-clone-and-fork-repo (start end)
+  "Ask ghq to get a git repo defined in the highlighted region of
+the current buffer, use hub to fork it, clone the forked repo,
+optionally add a git remote depending on user's feedback in
+minibuffer, and put the original repo url on the kill ring for use
+in Magit or on command line to add an upstream remote reference
+if the user prefers to add the remote using a different remote
+name than 'upstream'."
+  (interactive "r")
+  (let ((user-and-repo-name (buffer-substring start end))
+        (hub-path (executable-find "hub")))
+    (when (null hub-path) (error "Must have 'hub' binary installed on system and somewhere in path."))
+    (when (not (or (and (string-match-p "http\\|git" user-and-repo-name)
+                        (string-match-p "github.com" user-and-repo-name))
+                   (not (string-match-p "http\\|git" user-and-repo-name))))
+      (error "Must be a github repo to fork repo using 'hub'."))
+    (let* ((repo-name (car (last (split-string user-and-repo-name "/"))))
+           (ghq-root (if ghq-root ghq-root "~/.ghq")) ; You can define ghq-root elsewhere if desired.
+           (domain (if (string-match-p "http" user-and-repo-name)
+                       (third (split-string user-and-repo-name "/"))
+                     "github.com"))
+           (full-path-to-orig-repo
+            (expand-file-name (if (string-match-p "http\\|git" user-and-repo-name)
+                                  ;; Handle weird repo urls that have more than a user and repo name.
+                                  (string-join (cddr (split-string user-and-repo-name "/")) "/")
+                                (concat "github.com/" user-and-repo-name))
+                              ghq-root))
+           (full-remote-url (concat "https://"
+                                    (if (string-match-p "http\\|git" user-and-repo-name)
+                                        ;; Handle weird repo urls that have more than a user and repo name.
+                                        (string-join (cddr (split-string user-and-repo-name "/")) "/")
+                                      (concat "github.com/" user-and-repo-name))))
+           (full-path-to-new-repo
+            (expand-file-name (if (string-match-p "http\\|git" user-and-repo-name)
+                                  ;; Handle weird repo urls that have more than a user and repo name.
+                                  (string-join (list domain ivy-ghq-github-username repo-name) "/")
+                                (string-join (list "github.com" ivy-ghq-github-username repo-name) "/"))
+                              ghq-root))
+           (prompt (format "Do you want to add '%s' as a remote so that you can pull changes from the original repo?" full-remote-url))
+           (command-string
+            (if (y-or-n-p prompt)
+                (format "ghq get %s && cd %s && %s fork && ghq get %s/%s && cd %s && git remote add upstream %s"
+                        user-and-repo-name
+                        full-path-to-orig-repo
+                        hub-path
+                        ivy-ghq-github-username
+                        repo-name
+                        full-path-to-new-repo
+                        full-remote-url)
+              (format "ghq get %s && cd %s && %s fork && ghq get %s/%s"
+                        user-and-repo-name
+                        full-path-to-orig-repo
+                        hub-path
+                        ivy-ghq-github-username
+                        repo-name))))
+      (copy-region-as-kill start end) ; Put the original repo url in the kill ring.
+      (compilation-start
+       command-string))))
+
+;; Example URL cases that ghq can handle, but some of which
+;; ivy-ghq-clone-and-fork-repo cannot because hub only works with github repos:
+;; foo/bar                                 ; github brief
+;; https://bitbucket.com/foo/bar           ; non-github; can't fork a non-github repo with hub
+;; https://git.sf.com/foo/bar/bat          ; non-github extended; can't fork a non-github repo with hub
+;; https://github.com/uwabami/ido-ghq      ; github full
+
+
 ;;; autoload
 (defun ivy-ghq-add-org-link ()
   "Use `ivy-completing-read' to insert an Org link to a ghq
