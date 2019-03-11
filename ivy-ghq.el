@@ -4,6 +4,7 @@
 
 ;; Original Author of ido-ghq: Youhei SASAKI
 ;; Small edits to acheive ivy compatability by github.com/analyticd
+;; Additional edits to add functionality by github.com/analyticd
 ;; $Lastupdate: 2018-12-22 02:04:09$
 ;; Version: 0.0.2
 ;; Package-Requires: nil
