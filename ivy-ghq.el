@@ -124,28 +124,34 @@
           (dired (file-name-directory (directory-file-name path))))))))
 
 ;;; autoload
-(defun ivy-ghq-add-repo (start end)
-  "Ask ghq to add a git repo defined in the highlighted region of
-the current buffer. This is best used with emacs-w3m or another
-Emacs-based web browser."
-  (interactive "r")
+(defun ivy-ghq-add-repo ()
+  "Ask ghq to add a git repo. Allow the user to choose do a shallow clone
+of the repo. A shallow clone results in much smaller repos as it
+doesn't bring all the git object and log history."
+  (interactive)
   (compilation-start
-   (format  "ghq get %s" (buffer-substring start end))))
+   (format
+    (if (y-or-n-p "Do you want to perform a shallow clone?")
+        "ghq get --shallow %s"
+      "ghq get %s")
+    (read-string "Any git repo URL or a github username/reponame: "))))
 
 (defcustom ivy-ghq-github-username "analyticd"
   "Your username on github.com")
 
 ;;; autoload
-(defun ivy-ghq-clone-and-fork-repo (start end)
-  "Ask ghq to get a git repo defined in the highlighted region of
-the current buffer, use hub to fork it, clone the forked repo,
-optionally add a git remote depending on user's feedback in
-minibuffer, and put the original repo url on the kill ring for use
-in Magit or on command line to add an upstream remote reference
-if the user prefers to add the remote using a different remote
-name than 'upstream'."
-  (interactive "r")
-  (let ((user-and-repo-name (buffer-substring start end))
+(defun ivy-ghq-clone-and-fork-repo ()
+  "Ask ghq to get a git repo, use hub to fork it, clone the forked repo,
+optionally add a git remote depending on user's feedback, and put
+the original repo url on the kill ring for use in Magit or on
+command line to add an upstream remote reference if the user
+prefers to add the remote using a different remote name than
+'upstream'. Allow the user to choose a shallow clone of the repo.
+A shallow clone results in much smaller repos as it doesn't bring
+all the git object and log history."
+  (interactive)
+  (let ((user-and-repo-name
+         (read-string "Github username/reponame: "))
         (hub-path (executable-find "hub")))
     (when (null hub-path) (error "Must have 'hub' binary installed on system and somewhere in path."))
     (when (not (or (and (string-match-p "http\\|git" user-and-repo-name)
@@ -159,25 +165,34 @@ name than 'upstream'."
                      "github.com"))
            (full-path-to-orig-repo
             (expand-file-name (if (string-match-p "http\\|git" user-and-repo-name)
-                                  ;; Handle weird repo urls that have more than a user and repo name.
+                                  ;; Handle possibly non-github repo
+                                  ;; urls that have more than a user
+                                  ;; and repo name.
                                   (string-join (cddr (split-string user-and-repo-name "/")) "/")
                                 (concat "github.com/" user-and-repo-name))
                               ghq-root))
            (full-remote-url (concat "https://"
                                     (if (string-match-p "http\\|git" user-and-repo-name)
-                                        ;; Handle weird repo urls that have more than a user and repo name.
+                                        ;; Handle possibly non-github
+                                        ;; repo urls that have more
+                                        ;; than a user and repo name.
                                         (string-join (cddr (split-string user-and-repo-name "/")) "/")
                                       (concat "github.com/" user-and-repo-name))))
            (full-path-to-new-repo
             (expand-file-name (if (string-match-p "http\\|git" user-and-repo-name)
-                                  ;; Handle weird repo urls that have more than a user and repo name.
+                                  ;; Handle possibly non-github repo
+                                  ;; urls that have more than a user
+                                  ;; and repo name.
                                   (string-join (list domain ivy-ghq-github-username repo-name) "/")
                                 (string-join (list "github.com" ivy-ghq-github-username repo-name) "/"))
                               ghq-root))
            (prompt (format "Do you want to add '%s' as a remote so that you can pull changes from the original repo?" full-remote-url))
            (command-string
             (if (y-or-n-p prompt)
-                (format "ghq get %s && cd %s && %s fork && ghq get %s/%s && cd %s && git remote add upstream %s"
+                (format
+                 (if (y-or-n-p "Do you want to perform a shallow clone?")
+                     "ghq get --shallow %s && cd %s && %s fork && ghq get --shallow %s/%s && cd %s && git remote add upstream %s"
+                   "ghq get %s && cd %s && %s fork && ghq get %s/%s && cd %s && git remote add upstream %s")
                         user-and-repo-name
                         full-path-to-orig-repo
                         hub-path
@@ -185,22 +200,24 @@ name than 'upstream'."
                         repo-name
                         full-path-to-new-repo
                         full-remote-url)
-              (format "ghq get %s && cd %s && %s fork && ghq get %s/%s"
+              (format
+               (if (y-or-n-p "Do you want to perform a shallow clone?")
+                   "ghq get --shallow %s && cd %s && %s fork && ghq get --shallow %s/%s"
+                 "ghq get %s && cd %s && %s fork && ghq get %s/%s")
                         user-and-repo-name
                         full-path-to-orig-repo
                         hub-path
                         ivy-ghq-github-username
                         repo-name))))
-      (copy-region-as-kill start end) ; Put the original repo url in the kill ring.
-      (compilation-start
-       command-string))))
+      (kill-new  user-and-repo-name) 
+      (compilation-start command-string))))
 
 ;; Example URL cases that ghq can handle, but some of which
 ;; ivy-ghq-clone-and-fork-repo cannot because hub only works with github repos:
-;; foo/bar                                 ; github brief
+;; foo/bar                                 ; github brief format
 ;; https://bitbucket.com/foo/bar           ; non-github; can't fork a non-github repo with hub
-;; https://git.sf.com/foo/bar/bat          ; non-github extended; can't fork a non-github repo with hub
-;; https://github.com/uwabami/ido-ghq      ; github full
+;; https://git.sf.com/foo/bar/bat          ; non-github; can't fork a non-github repo with hub
+;; https://github.com/uwabami/ido-ghq      ; github full format
 
 
 ;;; autoload
