@@ -56,6 +56,17 @@
   :type 'boolean
   :group 'ivy-ghq)
 
+(defcustom ivy-ghq-deleted-repos-filename (expand-file-name "~/.emacs.d/.ghq-deleted-git-repos.txt")
+  "Path to filename where to store name of deleted git repo. Useful if you want
+to recall what repos you tried and didn't want."
+  :type 'string
+  :group 'ivy-ghq)
+
+(defcustom ivy-ghq-record-deleted-git-repos-p nil
+  "Non-nil means that you want to append the path of deleted git repos to `ivy-ghq-deleted-repos-filename'"
+  :type 'boolean
+  :group 'ivy-ghq)
+
 (defun ivy-ghq--command-arg-list ()
   (if ivy-ghq-short-list
       '("list")
@@ -72,7 +83,10 @@
    (if ivy-ghq-short-list
        (format "%s%s" (ivy-ghq--get-root) file)
      (format "%s" file))
-   t t))
+   t t)
+  (when ivy-ghq-record-deleted-git-repos-p
+    ;; Append file to ivy-ghq-deleted-repos-filename
+    (write-region (concat file "\n") nil ivy-ghq-deleted-repos-filename 'append)))
 
 (defun ivy-ghq--get-root ()
   (with-temp-buffer
